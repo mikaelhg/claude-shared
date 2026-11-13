@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Edit(/.git/hooks/**)",
+      "Edit(/.git/config)",
+      "Edit(/.git/config.worktree)",
+      "Edit(/.claude/scripts/**)"
+    ]
+  },
+  "sandbox": {
+    "excludedCommands": [
+      "doggo *",
+      "./.claude/scripts/commit-bwrap.sh *",
+      "./.claude/scripts/push-bwrap.sh *"
+    ],
+    "filesystem": {
+      "allowWrite": [
+      ],
+      "denyRead": [
+      ],
+      "denyWrite": [
+        "./.git/hooks",
+        "/.claude/scripts"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+      ],
+      "deniedDomains": [
+      ]
+    }
+  },
+  "env": {
+  }
+}
