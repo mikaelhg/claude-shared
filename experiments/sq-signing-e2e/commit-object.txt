@@ -1,0 +1,13 @@
+tree b4ed918248039b78f24383523fa4e51f80994fac
+author Scratch Tester <scratch@example.invalid> 1794700594 +0200
+committer Scratch Tester <scratch@example.invalid> 1794700594 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ wr0EABYKAG8Fgmr49TIJEKkC9/FeXkHDRxQAAAAAAB4AIHNhbHRAbm90YXRpb25z
+ LnNlcXVvaWEtcGdwLm9yZ6V6h2jDYm9rg5cRdwDFOzlQb41vbnyK2av+ZP3BF06p
+ FiEERjnfkXxP2Rbjpg1DqQL38V5eQcMAAK/GAP9D8f3HAHNqoc7fd+T2X4vHOw5Z
+ KAFuOPH2P6tLkpPP5AEAmn+/HFMfGhtFNjt27NQPxwu7SaFzod218WZy2HU7QQc=
+ =Y25W
+ -----END PGP SIGNATURE-----
+
+signed test commit

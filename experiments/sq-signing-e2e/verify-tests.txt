@@ -1,0 +1,44 @@
+sq 1.3.1
+using sequoia-openpgp 2.1.0
+with cryptographic backend Nettle 3.10 (Cv448: true, OCB: true)
+# sq-gpg verify tests (git 2.53.0, )
+
+## signing still works after refactor: new signed commit
+commit exit=0
+gpgsig headers: 1
+gpg: Good signature from "Scratch Tester <scratch@example.invalid>"
+verify exit=0
+
+## good commit
+gpg: Good signature from "Scratch Tester <scratch@example.invalid>"
+exit=0
+G signer=Scratch Tester <scratch@example.invalid> key=A902F7F15E5E41C3 fpr=4639DF917C4FD916E3A60D43A902F7F15E5E41C3 primary=EDC7C2D0FF2BFA3E518FF378002F2E2A6FBEADBD trust=ultimate
+
+## tampered message, gpgsig kept
+gpg: BAD signature from key A902F7F15E5E41C3
+exit=1
+B
+
+## signer cert not trusted (only a stranger's cert in cert dir)
+gpg: Can't check signature: No public key (A902F7F15E5E41C3)
+exit=1
+
+## commit signed by stranger, only my cert trusted
+gpg: Can't check signature: No public key (F9DB06E4313D932D)
+exit=1
+E
+
+## same commit, stranger cert trusted
+gpg: Good signature from "Stranger <stranger@example.invalid>"
+exit=0
+
+## signing failure: missing key file
+error: gpg failed to sign the data:
+sq-gpg: no readable key file: /nonexistent/4639DF917C4FD916E3A60D43A902F7F15E5E41C3.pgp
+
+fatal: failed to write commit object
+exit=128
+
+## wrapper: unsupported invocation
+sq-gpg: unsupported invocation (expected -bsau <keyid> or --verify)
+exit=2

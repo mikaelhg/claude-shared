@@ -16,18 +16,74 @@
     ],
     "filesystem": {
       "allowWrite": [
+        "/run/user/1000/pnpm-store-operation-locks-1000",
+        "~/.m2",
+        "~/.gradle",
+        "~/.local/share/kotlin",
+        "~/.cache/mise",
+        "~/.local/state/mise",
+        "~/.local/share/mise",
+        "~/.local/share/pnpm",
+        "~/.cache/pnpm",
+        "~/.local/state/pnpm",
+        "~/.cache/uv",
+        "~/.local/share/uv",
+        "~/.cache/pip",
+        "~/.cargo/registry"
       ],
       "denyRead": [
+        "~/.config/sops/age/keys.txt",
+        "~/.ssh",
+        "~/.aws",
+        "~/.gnupg",
+        "~/.config/gh",
+        "~/.netrc",
+        "~/.kube",
+        "~/.docker",
+        "~/.config/gcloud"
       ],
       "denyWrite": [
         "./.git/hooks",
-        "/.claude/scripts"
+        "/.claude/scripts",
+        "~/.claude/settings.json",
+        "~/.bashrc",
+        "~/.zshrc",
+        "~/.bash_profile",
+        "~/.profile",
+        "~/.gnupg",
+        "~/.ssh",
+        "/etc",
+        "/var",
+        "/usr"
       ]
     },
     "network": {
       "allowedDomains": [
+        "github.com:443",
+        "*.githubusercontent.com:443",
+        "services.gradle.org:443",
+        "plugins.gradle.org:443",
+        "plugins-artifacts.gradle.org:443",
+        "repo.maven.apache.org:443",
+        "maven.google.com:443",
+        "dl.google.com:443",
+        "central.sonatype.com:443",
+        "repository.apache.org:443",
+        "oss.sonatype.org:443",
+        "registry.npmjs.org:443",
+        "pypi.org:443",
+        "files.pythonhosted.org:443",
+        "static.crates.io:443",
+        "proxy.golang.org:443",
+        "mise.jdx.dev:443",
+        "mise-versions.jdx.dev:443",
+        "*.relays.mullvad.net:1080",
+        "cloudflare-dns.com:443",
+        "unfiltered.joindns4.eu:443",
+        "git.mikael.io:3222"
       ],
       "deniedDomains": [
+        "uploads.github.com"
       ]
     }
   },

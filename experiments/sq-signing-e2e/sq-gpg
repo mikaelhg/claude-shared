@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# gpg.program shim for Git: signs and verifies with `sq` using plain files.
+# No gpg-agent, no key store, no sockets.
+#
+# Signing:      gpg --status-fd=2 -bsau <keyid>            (payload on stdin)
+# Verification: gpg --keyid-format=long --status-fd=1 --verify <sigfile> -
+#                                                          (payload on stdin)
+#
+# Signing key file:  ${SQ_GIT_SIGNING_KEYDIR:-$HOME/.config/sq/git-signing}/<FINGERPRINT>.pgp
+# Trusted certs:     ${SQ_GIT_CERTDIR:-$HOME/.config/sq/git-signing/certs}/*.cert
+#   Every certificate in the cert directory is treated as ultimately trusted.
+set -u
+
+fail() { printf 'sq-gpg: %s\n' "$*" >&2; exit 2; }
+
+status_fd=2
+keyid=""
+verify=0
+sign=0
+positional=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --status-fd=*)    status_fd=${1#--status-fd=} ;;
+    --status-fd)      status_fd=${2:-}; shift ;;
+    --verify)         verify=1 ;;
+    --local-user=*)   keyid=${1#--local-user=} ;;
+    --local-user)     keyid=${2:-}; shift ;;
+    --keyid-format=*) ;;
+    --*)              ;;                       # ignore other long options
+    -)                positional+=("-") ;;
+    -*)
+      cluster=${1#-}
+      case "$cluster" in *s*) sign=1 ;; esac
+      case "$cluster" in *u) keyid=${2:-}; shift ;; esac
+      ;;
+    *) positional+=("$1") ;;
+  esac
+  shift
+done
+
+[[ $status_fd =~ ^[0-9]+$ ]] || fail "bad --status-fd"
+st() { printf '[GNUPG:] %s\n' "$*" >&"$status_fd"; }
+
+# ---------------------------------------------------------------- verify ---
+do_verify() {
+  local sigfile=${positional[0]:-}
+  [ -r "$sigfile" ] || fail "no readable signature file"
+
+  local tmp
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/sq-gpg.XXXXXX") || fail "mktemp failed"
+  trap 'rm -rf "$tmp"' EXIT
+  cat > "$tmp/payload"
+
+  local certdir=${SQ_GIT_CERTDIR:-$HOME/.config/sq/git-signing/certs}
+  local certs=() c
+  for c in "$certdir"/*.cert; do
+    [ -r "$c" ] && certs+=(--signer-file "$c")
+  done
+
+  local issuer
+  issuer=$(sq --home=none packet dump "$sigfile" 2>/dev/null \
+           | awk '/Issuer Fingerprint:/{print $3; exit}')
+  [ -n "$issuer" ] || { st "ERRSIG 0000000000000000 22 10 00 0 4 0000000000000000"
+                        echo "gpg: cannot determine signature issuer" >&2; exit 1; }
+  local kid=${issuer: -16}
+
+  local out
+  if [ ${#certs[@]} -gt 0 ] \
+     && out=$(sq --home=none verify "${certs[@]}" \
+                 --signature-file "$sigfile" "$tmp/payload" 2>&1); then
+    local line primary uid
+    line=$(printf '%s\n' "$out" | grep -m1 'Authenticated signature made by')
+    primary=${line#*made by }; primary=${primary%% *}
+    uid=${line#*\(}; uid=${uid%\)}
+    st "NEWSIG"
+    st "GOODSIG $kid $uid"
+    st "VALIDSIG $issuer 1970-01-01 0 0 4 0 22 10 00 $primary"
+    st "TRUST_ULTIMATE 0 pgp"
+    printf 'gpg: Good signature from "%s"\n' "$uid" >&2
+    exit 0
+  fi
+
+  # Failure: tell a bad signature (known signer) from an unknown signer.
+  local known=0
+  for c in "$certdir"/*.cert; do
+    [ -r "$c" ] || continue
+    sq --home=none inspect "$c" 2>/dev/null | grep -qi "$issuer" && known=1
+  done
+  st "NEWSIG"
+  if [ "$known" -eq 1 ]; then
+    st "BADSIG $kid [unknown]"
+    echo "gpg: BAD signature from key $kid" >&2
+  else
+    st "ERRSIG $kid 22 10 00 0 9 $issuer"
+    st "NO_PUBKEY $kid"
+    echo "gpg: Can't check signature: No public key ($kid)" >&2
+  fi
+  exit 1
+}
+
+# ------------------------------------------------------------------ sign ---
+do_sign() {
+  keyid=${keyid%!}
+  [[ $keyid =~ ^[0-9A-Fa-f]{16,64}$ ]] || fail "key id must be a hex fingerprint or key id"
+  keyid=${keyid^^}
+
+  local keyfile="${SQ_GIT_SIGNING_KEYDIR:-$HOME/.config/sq/git-signing}/$keyid.pgp"
+  [ -r "$keyfile" ] || fail "no readable key file: $keyfile"
+
+  local sig
+  sig=$(sq --home=none sign --signer-file "$keyfile" --signature-file=-) || fail "sq sign failed"
+  [ -n "$sig" ] || fail "sq produced no signature"
+
+  st "SIG_CREATED D 22 10 00 $(date +%s) $keyid"
+  printf '%s\n' "$sig"
+}
+
+if   [ "$verify" -eq 1 ]; then do_verify
+elif [ "$sign"   -eq 1 ]; then do_sign
+else fail "unsupported invocation (expected -bsau <keyid> or --verify)"
+fi

@@ -1,0 +1,5 @@
+user.name=Scratch Tester
+user.email=scratch@example.invalid
+user.signingkey=4639DF917C4FD916E3A60D43A902F7F15E5E41C3
+gpg.program=<experiment-dir>/sq-gpg
+commit.gpgsign=true

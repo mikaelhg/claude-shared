@@ -38,13 +38,13 @@ This plan takes option 2.
 - Limit the damage if the signing key leaks: the key must not grant
   repository access and must be revocable without replacing the primary key.
 - Show the "Verified" badge on Forgejo for signed commits.
+- Verify signatures locally (`git verify-commit`, `git log
+  --show-signature`) with the same wrapper.
 
 ### Non-goals
 
-- Local signature verification (`git verify-commit`, `git log
-  --show-signature`). Forgejo's badge is the verification of record. A
-  `sq verify`-based path is a possible later extension (see
-  [Future work](#9-future-work)).
+- A web of trust or any trust model beyond an allow-list of certificates
+  (see R6).
 - A general-purpose replacement for `gpg`.
 
 ## 3. Background and decisions
@@ -63,9 +63,9 @@ key.
 ### 3.2 Why not `gpg-sq`
 
 `gpg-sq` (from sequoia-chameleon-gnupg) is a `gpg`-compatible shim that could
-be set directly as `gpg.program`. It is reported to use `gpg-agent` for
-secret-key operations, which defeats the purpose of this plan. This report is
-unconfirmed; see assumption A1.
+be set directly as `gpg.program`. Its documentation states that it requires
+`gpg-agent`, which defeats the purpose of this plan. It is therefore ruled
+out.
 
 ### 3.3 Decision
 
@@ -101,7 +101,7 @@ Details for signing:
 | R3 | Map the configured `user.signingkey` (a fingerprint, not a path) to a key file. |
 | R4 | Sign with `sq`, writing an armored detached signature to stdout. |
 | R5 | Print `SIG_CREATED` on the status fd only after `sq` exits 0. Do not use `exec sq`, which would leave the line printed on failure. |
-| R6 | On `--verify`, exit non-zero with no output. The wrapper must never reach the signing path in verify mode, or it would sign stdin. |
+| R6 | On `--verify`, verify with `sq verify` against the certificates in a cert directory, and emit `GOODSIG`/`VALIDSIG`/`TRUST_ULTIMATE` (good), `BADSIG` (known signer, bad signature) or `ERRSIG`/`NO_PUBKEY` (unknown signer) status lines. Every certificate in the directory is treated as ultimately trusted; the directory is the allow-list. The wrapper must never reach the signing path in verify mode. |
 | R7 | On any failure, return a non-zero exit status and write diagnostics to stderr. |
 | R8 | Make no network, socket or key-store access. |
 
@@ -110,7 +110,7 @@ Details for signing:
 ### 5.1 Control flow
 
 1. Parse arguments (R1, R2).
-2. If `--verify` was given, exit non-zero (R6).
+2. If `--verify` was given, run the verification path (R6) and stop.
 3. Resolve the key file from the key ID (R3). Exit non-zero if the file is
    missing or unreadable.
 4. Run `sq --home=none sign --signer-file <file>` with options for detached,
@@ -152,10 +152,10 @@ selector that Git users append to force a specific subkey.
    (6–12 months). Rotate it before expiry.
 3. Export the **secret subkey only** to a file outside the sandbox-denied
    paths (not under `~/.gnupg`, `~/.ssh` and similar), with mode `0600`.
-4. Leave the subkey without a passphrase. Git runs the wrapper with stdin
-   piped, so an encrypted key would require a terminal prompt. This is
-   acceptable because the key is signing-only and short-lived. See assumption
-   A3 for the encrypted alternative.
+4. Leave the subkey without a passphrase (`--without-password`), matching
+   the existing practice for Git signing keys. This also avoids a prompt,
+   since Git runs the wrapper with stdin piped. It is acceptable because the
+   key is signing-only and short-lived. Encrypted keys are out of scope.
 5. Upload the public certificate, including the subkey, to Forgejo. The
    commit author email must match a user ID on the certificate and be a
    verified email on the Forgejo account; otherwise the commit shows as
@@ -178,15 +178,15 @@ Run all tests on a scratch repository with a throwaway key.
 |---|---|---|
 | T1 | Run the wrapper with Git's exact arguments and a sample payload. | Stdout is a valid detached signature (check with `sq verify` against the certificate); `SIG_CREATED` appears on the status fd; exit 0. |
 | T2 | Point the wrapper at a missing or invalid key file. | Non-zero exit; no `SIG_CREATED`. |
-| T3 | Run the wrapper with `--verify`. | Non-zero exit; no output; no signing. |
+| T3 | `git verify-commit` on a good commit, a tampered commit, and a commit whose signer's certificate is not in the cert directory. | Good: exit 0, `%G?` = `G`. Tampered: non-zero, `B`. Unknown signer: non-zero, `E`. No signing happens in any case. |
 | T4 | `git commit -S`, then `git cat-file -p HEAD`. | The commit object contains a `gpgsig` header. |
 | T5 | Repeat T4 inside the sandbox. | Succeeds with no sandbox violations. |
 | T6 | Push the commit to Forgejo. | Forgejo shows the "Verified" badge. |
 
 ## 9. Future work
 
-- Add a `sq verify`-based `--verify` path that emits `GOODSIG` and `VALIDSIG`
-  status lines, enabling local `git verify-commit`.
+- Emit real dates and expiry in `VALIDSIG` (currently placeholders) and the
+  signer's user ID in `BADSIG`.
 - Add a pre-push hook or CI job that rejects unsigned commits.
 
 ## Assumptions to verify
@@ -196,13 +196,13 @@ of `sq` and Git before implementation.
 
 | ID | Assumption | How to check |
 |---|---|---|
-| A1 | `gpg-sq` requires `gpg-agent` for signing. | Read its documentation or source; run it with the agent socket unavailable. |
 | A2 | `sq sign` can produce an armored detached signature on stdout; the exact flags differ between versions. | `sq sign --help`; run T1. |
-| A3 | `sq --home=none` avoids the key store and any socket; encrypted key files can be unlocked non-interactively or via a terminal prompt. | Run `sq` under `strace -f -e trace=network,connect` or the sandbox; read `sq --help`. |
 | A4 | Git accepts a signature when stderr/status contains `[GNUPG:] SIG_CREATED ` and the exit status is 0. | Run T4 against the installed Git version. |
 
 ## Links
 
+- [`sq` calling manual](docs/sq-manual.md) (local reference for the commands above)
+- [Experiment evidence](experiments/sq-signing-e2e/README.md) (signing and verification run end to end in the sandbox)
 - <https://sequoia-pgp.org/>
 - <https://gitlab.com/sequoia-pgp/sequoia>
 - <https://github.com/google/go-jsonnet>

@@ -9,6 +9,11 @@
 # no delete), no tags, no submodules, no hooks. Refuses if repo or user config
 # could redirect the push.
 #
+# origin must be exactly the URL you allowed for this repository, once, in
+# your global git config (outside anything Claude Code can write):
+#   git config --global push-bwrap.<repo path>.url <url>
+# e.g. git config --global push-bwrap./home/me/src/foo.url git@example.com:me/foo.git
+#
 # What git and ssh can see in there, and nothing else:
 #   - /usr/bin/git, /usr/bin/ssh and the library directories, read-only.
 #     No shell and no other program, so a hook, credential helper,
@@ -57,10 +62,6 @@ case "$BRANCH" in
   -* | *:* | *+* | *'*'* | *..* | refs/* | HEAD | */ | /* | '')
     echo "refusing branch name: $BRANCH" >&2; exit 2 ;;
 esac
-
-# Accepted remote URLs: this repository on git.mikael.io over ssh, any user
-# name and port.
-URL_RE='^(ssh://[A-Za-z0-9._-]+@git\.mikael\.io(:[0-9]+)?/|[A-Za-z0-9._-]+@git\.mikael\.io:)mikaelhg/bonnet(\.git)?$'
 
 # The repo is the nearest directory above this script that holds .git, so the
 # script works from scripts/ and from .claude/scripts/ alike. A linked
@@ -192,11 +193,15 @@ net_git() { sandboxed_git net "$@"; }
 # The script must sit inside the work tree it found.
 [ "$(local_git rev-parse --show-toplevel)" = "$REPO" ] || die "not the top of a git work tree: $REPO"
 
-# The remote must be this repository, with no push URL, URL rewrites, includes,
-# or custom receive-pack.
-ORIGIN=$(local_git config --get-all remote.origin.url)
-printf '%s\n' "$ORIGIN" | /usr/bin/grep -Eq "$URL_RE" && [ "$(printf '%s\n' "$ORIGIN" | /usr/bin/wc -l)" -eq 1 ] ||
-  die "unexpected remote.origin.url: $ORIGIN"
+# The remote must be exactly the URL you allowed for this repository in your
+# global git config, which Claude Code's sandbox can't write to (unlike
+# .git/config), with no push URL, URL rewrites, includes, or custom
+# receive-pack.
+ALLOWED=$(local_git config --global --get-all "push-bwrap.$REPO.url" || :)
+[ -n "$ALLOWED" ] && [ "$(printf '%s\n' "$ALLOWED" | /usr/bin/wc -l)" -eq 1 ] || die "no single allowed remote URL for $REPO in your global git config; set one with:
+  git config --global push-bwrap.$REPO.url <url>"
+ORIGIN=$(local_git config --get-all remote.origin.url || :)
+[ "$ORIGIN" = "$ALLOWED" ] || die "remote.origin.url is not the allowed $ALLOWED: $ORIGIN"
 CONFIG_RE='^(url\..*|include\..*|includeif\..*|remote\.origin\.(pushurl|receivepack|uploadpack|push|mirror|vcs|proxy))$'
 if local_git config --get-regexp "$CONFIG_RE" >/dev/null; then
   echo "$0: refusing: repo or user config redirects or alters the push" >&2
