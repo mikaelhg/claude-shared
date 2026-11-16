@@ -7,8 +7,9 @@ wrapper described in [PLAN_SEQUOIA.md](../PLAN_SEQUOIA.md).
 - **How it was tested:** commands were run inside the sandbox with a
   throwaway key in a scratch directory. Flags were read from `sq <command> --help`. The key-generation,
   signing, verification and subkey-stripping commands in sections 2 to 5 were
-  run successfully. Passphrase-protected keys and Git integration were
-  **not** tested.
+  run successfully. Passphrase-protected keys were **not** tested. Git
+  integration was tested separately; see the
+  [experiment evidence](../experiments/sq-signing-e2e/README.md).
 - Flags can change between versions. Re-check with `sq <command> --help`
   after upgrading, or pin the CLI with `--cli-version` (see section 1).
 
@@ -150,8 +151,6 @@ with `--help` before use.
 
 - Passphrases: out of scope. Signing keys here are passphrase-less
   (`--without-password`), which is the only mode tested.
-- Git integration: no test of the wrapper with `git commit -S`.
-
 ## 8. Socket-freedom
 
 The commands in sections 2 to 5 were run inside the bubblewrap sandbox, which
