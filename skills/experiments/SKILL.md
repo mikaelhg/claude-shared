@@ -1,6 +1,6 @@
 ---
 name: "experiments"
-description: "Protocol for verifying by experiment how an API, a tool, an OS mechanism or similar actually behaves, and recording the findings so later sessions can look them up instead of re-testing. Records are kept in each repo and written to be safe to publish. Covers test design, a light and a full form, folder layout, findings index, citing findings, and which model does which step. Includes templates and a privacy check script. Use only when the user or the project's CLAUDE.md asks for it, not for ordinary quick checks."
+description: "Protocol for verifying by experiment how an API, a tool, an OS mechanism or similar actually behaves, and recording the findings so later sessions can look them up instead of re-testing. Records are kept in each repo and written to be safe to publish. Covers test design, a light and a full form, folder layout, findings index, citing findings, a lessons file for obstacles that recur across experiments, and which model does which step. Includes templates and a privacy check script. Use only when the user or the project's CLAUDE.md asks for it, not for ordinary quick checks."
 ---
 
 # Experiments
@@ -19,6 +19,7 @@ These are in the skill's own folder, next to this file. Copy the templates; do n
 | File | Use |
 |---|---|
 | `templates/index.md` | Start `experiments/README.md` in a repository that has none. |
+| `templates/lessons.md` | Start `experiments/LESSONS.md` in a repository that has none. |
 | `templates/topic-readme.md` | Start `experiments/<topic>/README.md`. |
 | `templates/hypothesis.md` | Start each hypothesis document. |
 | `templates/subagent-brief.md` | Brief an executor subagent. |
@@ -26,7 +27,7 @@ These are in the skill's own folder, next to this file. Copy the templates; do n
 
 ## Before you start
 
-1. Read `experiments/README.md`, the index of earlier findings. If the question is already answered for the versions and environment in use, cite that finding and stop.
+1. Read `experiments/README.md`, the index of earlier findings. If the question is already answered for the versions and environment in use, cite that finding and stop. Read `experiments/LESSONS.md` too; it lists the obstacles earlier experiments ran into.
 2. If an earlier finding covers the question but for a different version or environment, rerun its scripts and update the existing record. Do not start a new topic.
 3. Otherwise, write down the question and the decision that depends on it. A question nobody's decision depends on does not need an experiment.
 4. Choose the form.
@@ -50,6 +51,7 @@ Grow a light experiment into a full one as soon as a second hypothesis appears o
 - **Test the real thing.** Use the same version, platform and environment that the decision concerns: the same sandbox, the same user, the same configuration. A result from a different environment is a lead, not a finding.
 - **Isolate.** Use the smallest setup that shows the behaviour, with unrelated configuration disabled or pinned, so the result has one explanation.
 - **Show that the test can fail.** Include a control whose outcome differs: a negative case, a tampered input, the mechanism switched off. A test that cannot fail verifies nothing.
+- **Separate the environment from the substance.** A test can fail for reasons that have nothing to do with the question: a host is down, the sandbox blocks a call, a service turns automated requests away. Such a failure is not evidence either way. Record the result as inconclusive, never as refuted, and record the obstacle as a lesson.
 - **Observe, do not infer.** Evidence is the exact command and its output, exit status or resulting state. Documentation, source code and recall tell you what to test; they are not evidence. If you rely on them anyway, say so and mark the claim as not verified.
 - **Record the conditions.** Tool and library versions, OS and kernel release, the relevant configuration and the date, within the limits of "Records may be public" below. A finding is only known to hold under the conditions it was observed in.
 
@@ -96,6 +98,7 @@ All paths are relative to the root of the repository the experiment is for. Each
 
     experiments/
       README.md            # index: every topic, its question and its answer
+      LESSONS.md           # obstacles and techniques that apply across topics
       <topic>/
         README.md          # findings first, then how they were reached
         h1-<slug>.md       # full form: one document per major hypothesis
@@ -153,6 +156,17 @@ When a finding changes:
 1. Correct it in place and note the correction in "Path taken". Do not leave a contradicting newer record beside it.
 2. Search for its citations, as "Citing findings" describes.
 3. Report the change and the documents that cite it to the owner. Whether those designs change is the owner's decision.
+
+## Lessons
+
+`experiments/LESSONS.md` records what a session learned about the conditions for testing here, so that the next one does not rediscover it: the limits of the environment, how external services fail for unrelated reasons, and techniques that worked. Facts about the thing under test are findings, and go in a topic README.
+
+- Add a lesson only if it will apply to another topic, and say what to do about it.
+- Record lasting conditions, not incidents.
+- A limit that someone chose is designed around or taken to the owner, never defeated.
+- Keep the file to about a page. The main session maintains it.
+
+A problem with this protocol itself goes to the owner, not into the repository.
 
 ## When to ask the owner
 
@@ -212,7 +226,7 @@ The main session writes parts 1 to 3 of each hypothesis document (hypothesis, co
 
 ### Briefing a subagent
 
-A subagent starts without this context and cannot read this skill. Fill in `templates/subagent-brief.md` and send it whole. It carries the rules for recording, scripts and public records, and two rules that matter most with a cheap executor:
+A subagent starts without this context and cannot read this skill. Fill in `templates/subagent-brief.md`, including the lessons that bear on its plan, and send it whole. It carries the rules for recording, scripts and public records, and two rules that matter most with a cheap executor:
 
 - **Stop instead of improvising.** On a failure or an unexpected result, the subagent records what happened and reports back. It does not change the plan, reinterpret the hypothesis or decide the verdict. An unexpected result is often the most valuable one, and it needs a more capable reader.
 - **Return a short report.** Raw output stays in the experiment folder, out of the main session's context.
@@ -221,6 +235,6 @@ A subagent starts without this context and cannot read this skill. Fill in `temp
 
 - The main session reads the recorded commands and the output that bears on each result, then writes the verdict. A subagent's report is a claim until the evidence in the hypothesis document supports it.
 - Check that the control behaved as a control: if the test could not have failed, the result does not count, whichever model ran it.
-- The main session then writes the topic README, updates the index, and runs the privacy check.
+- The main session then writes the topic README, updates the index, adds any lessons, and runs the privacy check.
 
 If subagents are unavailable, do the same work in the main session and keep the same documents.
