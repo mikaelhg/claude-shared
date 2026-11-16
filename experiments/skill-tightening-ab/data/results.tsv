@@ -1,0 +1,8 @@
+run	arm	R1	R2	R3	R4	R5	R6	R7	R8	R9	R10	R11	tokens	tool_calls	seconds	redaction
+1	A	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	68706	16	106	in script
+4	A	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	69096	14	99	by hand
+6	A	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	70134	20	108	in script
+2	B	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	66985	14	99	in script
+3	B	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	66381	11	99	in script
+7	B	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	pass	67128	9	98	in script
+5	C	FAIL	FAIL	FAIL	pass	FAIL	FAIL	pass	pass	pass	pass	pass	56064	8	61	none
